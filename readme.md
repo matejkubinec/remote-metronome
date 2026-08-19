@@ -1,5 +1,7 @@
 # Remote Metronome
 
+![Remote metronome user interface](./docs/images/app-01.png)
+
 A lightweight, portable, cross-platform metronome that plays sample-accurate audio directly through your host computer's speakers while allowing real-time remote control from any smartphone, tablet, or web browser on your local network.
 
 ![License](https://img.shields.io/github/license/matejkubinec/remote-metronome)
