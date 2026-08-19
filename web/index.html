@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Remote Metronome</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #111111;
+      --card-bg: #f8f9fa;
+      --border: #e2e8f0;
+      --muted: #666666;
+      --accent: #111111;
+      --accent-fg: #ffffff;
+      --pulse: #000000;
+      --playing: #d9381e;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0a0a0a;
+        --fg: #ededed;
+        --card-bg: #141414;
+        --border: #262626;
+        --muted: #888888;
+        --accent: #ffffff;
+        --accent-fg: #000000;
+        --pulse: #ffffff;
+        --playing: #ff4d4d;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      display: flex;
+      min-height: 100vh;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      width: 100%;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.75rem;
+    }
+
+    .title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .beat-display {
+      font-size: 4rem;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1;
+      height: 4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      letter-spacing: -0.05em;
+    }
+
+    .beat-display.active {
+      color: var(--pulse);
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+    }
+
+    .bpm-controls {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    input[type="number"] {
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.5rem;
+      font-size: 1.1rem;
+      width: 75px;
+      text-align: center;
+      outline: none;
+    }
+
+    input[type="number"]:focus {
+      border-color: var(--fg);
+    }
+
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--fg);
+      cursor: pointer;
+    }
+
+    .btn-secondary {
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .btn-secondary:active {
+      background: var(--border);
+    }
+
+    .time-sig-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    select {
+      background: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.5rem;
+      font-size: 1rem;
+      flex: 1;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select:focus {
+      border-color: var(--fg);
+    }
+
+    button.toggle-btn {
+      background: var(--accent);
+      color: var(--accent-fg);
+      border: none;
+      border-radius: 4px;
+      padding: 0.85rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      transition: opacity 0.15s ease;
+      margin-top: 0.5rem;
+    }
+
+    button.toggle-btn:hover {
+      opacity: 0.9;
+    }
+
+    button.toggle-btn.playing {
+      background: var(--playing);
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <span class="title">Remote Metronome</span>
+    </div>
+
+    <div class="beat-display" id="beatDisplay">-</div>
+
+    <div class="control-group">
+      <span class="label">Tempo (BPM)</span>
+      <div class="bpm-controls">
+        <input type="number" id="bpmNumber" min="30" max="300" value="120" onchange="syncBpmInput(this.value)">
+        <input type="range" id="bpmSlider" min="30" max="300" value="120" oninput="syncBpmSlider(this.value)">
+        <button class="btn-secondary" id="tapBtn" onclick="handleTap()">Tap</button>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <span class="label">Time Signature</span>
+      <div class="time-sig-controls">
+        <select id="numSelect" onchange="updateState()">
+          <option value="1">1</option>
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+          <option value="6">6</option>
+          <option value="7">7</option>
+        </select>
+        <span>/</span>
+        <select id="denSelect" onchange="updateState()">
+          <option value="2">2</option>
+          <option value="4" selected>4</option>
+          <option value="8">8</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="toggleBtn" class="toggle-btn" onclick="togglePlay()">Start</button>
+  </div>
+
+  <script>
+    const ws = new WebSocket(`ws://${location.host}/ws`);
+    let currentState = { bpm: 120, numerator: 4, denominator: 4, isPlaying: false, currentBeat: 0 };
+    let tapTimes = [];
+
+    ws.onmessage = (event) => {
+      currentState = JSON.parse(event.data);
+      
+      document.getElementById('bpmNumber').value = currentState.bpm;
+      document.getElementById('bpmSlider').value = currentState.bpm;
+      document.getElementById('numSelect').value = currentState.numerator;
+      document.getElementById('denSelect').value = currentState.denominator;
+      
+      const beatDisplay = document.getElementById('beatDisplay');
+      beatDisplay.innerText = currentState.isPlaying ? currentState.currentBeat : '-';
+      beatDisplay.className = currentState.isPlaying ? 'beat-display active' : 'beat-display';
+
+      const btn = document.getElementById('toggleBtn');
+      btn.innerText = currentState.isPlaying ? 'Stop' : 'Start';
+      btn.className = currentState.isPlaying ? 'toggle-btn playing' : 'toggle-btn';
+    };
+
+    function handleTap() {
+      const now = performance.now();
+      
+      // Reset tap history if more than 2.5 seconds have elapsed since last tap
+      if (tapTimes.length > 0 && (now - tapTimes[tapTimes.length - 1]) > 2500) {
+        tapTimes = [];
+      }
+      
+      tapTimes.push(now);
+      if (tapTimes.length > 8) {
+        tapTimes.shift(); // Keep rolling average of last 8 taps
+      }
+
+      if (tapTimes.length >= 2) {
+        const intervals = [];
+        for (let i = 1; i < tapTimes.length; i++) {
+          intervals.push(tapTimes[i] - tapTimes[i - 1]);
+        }
+        const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+        let bpm = Math.round(60000 / avgInterval);
+        
+        bpm = Math.min(Math.max(bpm, 30), 300); // Clamp 30 - 300
+        syncBpmInput(bpm);
+      }
+    }
+
+    function syncBpmSlider(val) {
+      document.getElementById('bpmNumber').value = val;
+      updateState();
+    }
+
+    function syncBpmInput(val) {
+      let bpm = parseInt(val) || 120;
+      bpm = Math.min(Math.max(bpm, 30), 300);
+      document.getElementById('bpmNumber').value = bpm;
+      document.getElementById('bpmSlider').value = bpm;
+      updateState();
+    }
+
+    function updateState() {
+      currentState.bpm = parseInt(document.getElementById('bpmNumber').value);
+      currentState.numerator = parseInt(document.getElementById('numSelect').value);
+      currentState.denominator = parseInt(document.getElementById('denSelect').value);
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify(currentState));
+      }
+    }
+
+    function togglePlay() {
+      currentState.isPlaying = !currentState.isPlaying;
+      updateState();
+    }
+  </script>
+</body>
+</html>
