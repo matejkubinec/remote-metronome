@@ -3,7 +3,7 @@ name: Build and Release Binaries
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build:
@@ -17,15 +17,19 @@ jobs:
           - goos: windows
             goarch: amd64
             ext: .exe
+            cgo: 0
           - goos: darwin
             goarch: arm64
             ext: ""
+            cgo: 0
           - goos: darwin
             goarch: amd64
             ext: ""
+            cgo: 0
           - goos: linux
             goarch: amd64
             ext: ""
+            cgo: 1
 
     steps:
       - name: Checkout repository
@@ -34,19 +38,19 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: "1.27"
 
-      - name: Install Linux Audio Dependencies
+      - name: Install Linux Audio & Build Dependencies
         if: matrix.goos == 'linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y libasound2-dev
+          sudo apt-get install -y libasound2-dev gcc pkg-config
 
       - name: Build Binary
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
-          CGO_ENABLED: 0
+          CGO_ENABLED: ${{ matrix.cgo }}
         run: |
           mkdir -p bin
           OUT_NAME="remote-metronome-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}"

@@ -105,7 +105,7 @@ Run the executable from your terminal:
 
 ### Prerequisites
 
-* [Go 1.22+](https://golang.org/doc/install)
+* [Go 7+](https://golang.org/doc/install)
 * **Linux only:** ALSA library headers (`sudo apt-get install libasound2-dev`)
 
 ### Build Steps
