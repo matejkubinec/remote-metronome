@@ -8,12 +8,15 @@ import (
 	"io/fs"
 	"log"
 	"math"
+	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/ebitengine/oto/v3"
 	"github.com/gorilla/websocket"
+	"github.com/mdp/qrterminal/v3"
 )
 
 //go:embed web/*.html web/index.html
@@ -40,6 +43,22 @@ var (
 	hub      = Hub{clients: make(map[*websocket.Conn]bool), broadcast: make(chan []byte)}
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
 )
+
+// Helper function to find the host computer's local Wi-Fi IP address
+func getLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "localhost"
+	}
+	for _, address := range addrs {
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return "localhost"
+}
 
 // Generate synthesized sine-wave clicks in memory (16-bit PCM, 44100Hz)
 func generateClickPCM(freq float64, duration time.Duration) []byte {
@@ -82,10 +101,25 @@ func main() {
 
 	// HTTP & WebSocket Server Setup
 	subFS, _ := fs.Sub(webFiles, "web")
+	ip := getLocalIP()
+	url := fmt.Sprintf("http://%s:8080", ip)
+
+	fmt.Println("\n==================================================")
+	fmt.Printf(" Remote Metronome Running!\n")
+	fmt.Printf(" Local URL: %s\n", url)
+	fmt.Println(" Scan the QR code below with your phone camera:")
+	fmt.Println("==================================================")
+
+	// Print QR code directly to the terminal screen
+	qrterminal.GenerateWithConfig(url, qrterminal.Config{
+		Level:      qrterminal.M,
+		Writer:     os.Stdout,
+		HalfBlocks: true,
+	})
+
 	http.Handle("/", http.FileServer(http.FS(subFS)))
 	http.HandleFunc("/ws", handleWebSockets)
 
-	fmt.Println("Metronome running! Access the control UI at http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 

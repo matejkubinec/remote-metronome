@@ -9,5 +9,8 @@ require (
 
 require (
 	github.com/ebitengine/purego v0.9.0 // indirect
+	github.com/mdp/qrterminal/v3 v3.2.1 // indirect
 	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/term v0.13.0 // indirect
+	rsc.io/qr v0.2.0 // indirect
 )
