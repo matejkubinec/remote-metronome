@@ -1,0 +1,7 @@
+[
+    {"name": "Slow", "bpm": 60},
+    {"name": "Andante", "bpm": 80},
+    {"name": "Moderato", "bpm": 100},
+    {"name": "Allegro", "bpm": 120},
+    {"name": "Presto", "bpm": 160}
+]

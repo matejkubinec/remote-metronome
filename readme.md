@@ -77,11 +77,14 @@ Download the compiled binary for your platform (Windows, macOS, Linux) from the 
 Run the executable from your terminal:
 
 ```bash
-# macOS / Linux
+# macOS / Linux (Default port 8080, default presets presets.json)
 ./remote-metronome
 
+# Specify custom port and custom presets file
+./remote-metronome -port 9090 -presets custom_presets.json
+
 # Windows
-.\remote-metronome.exe
+.\remote-metronome.exe -port 9090 -presets custom_presets.json
 ```
 
 ### 3. Connect Devices

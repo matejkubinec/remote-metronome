@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"embed"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -23,12 +24,18 @@ import (
 var webFiles embed.FS
 
 // State managed centrally and broadcasted to all WebSocket clients
+type Preset struct {
+	Name string `json:"name"`
+	BPM  int    `json:"bpm"`
+}
+
 type MetronomeState struct {
-	BPM         int  `json:"bpm"`
-	Numerator   int  `json:"numerator"`   // e.g., 4 in 4/4
-	Denominator int  `json:"denominator"` // e.g., 4 in 4/4
-	IsPlaying   bool `json:"isPlaying"`
-	CurrentBeat int  `json:"currentBeat"` // For visual sync in Web UI
+	BPM         int      `json:"bpm"`
+	Numerator   int      `json:"numerator"`   // e.g., 4 in 4/4
+	Denominator int      `json:"denominator"` // e.g., 4 in 4/4
+	IsPlaying   bool     `json:"isPlaying"`
+	CurrentBeat int      `json:"currentBeat"` // For visual sync in Web UI
+	Presets     []Preset `json:"presets"`
 }
 
 type Hub struct {
@@ -38,7 +45,7 @@ type Hub struct {
 }
 
 var (
-	state    = MetronomeState{BPM: 120, Numerator: 4, Denominator: 4, IsPlaying: false, CurrentBeat: 0}
+	state    = MetronomeState{BPM: 120, Numerator: 4, Denominator: 4, IsPlaying: false, CurrentBeat: 0, Presets: []Preset{}}
 	stateMu  sync.RWMutex
 	hub      = Hub{clients: make(map[*websocket.Conn]bool), broadcast: make(chan []byte)}
 	upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
@@ -78,7 +85,30 @@ func generateClickPCM(freq float64, duration time.Duration) []byte {
 	return buf.Bytes()
 }
 
+func loadPresets(filePath string) {
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Printf("Could not read %s: %v", filePath, err)
+		return
+	}
+
+	var presets []Preset
+	if err := json.Unmarshal(file, &presets); err != nil {
+		log.Printf("Could not parse %s: %v", filePath, err)
+		return
+	}
+
+	stateMu.Lock()
+	state.Presets = presets
+	stateMu.Unlock()
+}
+
 func main() {
+	port := flag.Int("port", 8080, "Port for web server and WebSocket connection")
+	presetsPath := flag.String("presets", "presets.json", "Path to custom presets JSON file")
+	flag.Parse()
+
+	loadPresets(*presetsPath)
 	// Initialize Host Audio Output
 	op := &oto.NewContextOptions{
 		SampleRate:   44100,
@@ -102,7 +132,7 @@ func main() {
 	// HTTP & WebSocket Server Setup
 	subFS, _ := fs.Sub(webFiles, "web")
 	ip := getLocalIP()
-	url := fmt.Sprintf("http://%s:8080", ip)
+	url := fmt.Sprintf("http://%s:%d", ip, *port)
 
 	fmt.Println("\n==================================================")
 	fmt.Printf(" Remote Metronome Running!\n")
@@ -120,7 +150,7 @@ func main() {
 	http.Handle("/", http.FileServer(http.FS(subFS)))
 	http.HandleFunc("/ws", handleWebSockets)
 
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", *port), nil))
 }
 
 func hostAudioEngine(ctx *oto.Context, accent, normal []byte) {

@@ -239,6 +239,13 @@
         </div>
       </div>
 
+      <div class="control-group" id="presetsGroup" style="display: none;">
+        <span class="label">Presets</span>
+        <select id="presetSelect" onchange="applyPreset(this.value)">
+          <option value="">Select a preset...</option>
+        </select>
+      </div>
+
       <div class="control-group">
         <span class="label">Time Signature</span>
         <div class="time-sig-controls">
@@ -274,16 +281,37 @@
         denominator: 4,
         isPlaying: false,
         currentBeat: 0,
+        presets: [],
       };
       let tapTimes = [];
+      let presetsLoaded = false;
 
       ws.onmessage = (event) => {
-        currentState = JSON.parse(event.data);
+        const newState = JSON.parse(event.data);
+        
+        // Update presets if they haven't been loaded yet
+        if (!presetsLoaded && newState.presets && newState.presets.length > 0) {
+          const select = document.getElementById("presetSelect");
+          newState.presets.forEach(preset => {
+            const option = document.createElement("option");
+            option.value = preset.bpm;
+            option.textContent = `${preset.name} (${preset.bpm} BPM)`;
+            select.appendChild(option);
+          });
+          document.getElementById("presetsGroup").style.display = "flex";
+          presetsLoaded = true;
+        }
+
+        currentState = newState;
 
         document.getElementById("bpmNumber").value = currentState.bpm;
         document.getElementById("bpmSlider").value = currentState.bpm;
         document.getElementById("numSelect").value = currentState.numerator;
         document.getElementById("denSelect").value = currentState.denominator;
+        
+        // Update preset select value if it matches a preset bpm
+        const presetSelect = document.getElementById("presetSelect");
+        presetSelect.value = newState.presets.some(p => p.bpm === currentState.bpm) ? currentState.bpm : "";
 
         const beatDisplay = document.getElementById("beatDisplay");
         beatDisplay.innerText = currentState.isPlaying
@@ -332,6 +360,12 @@
         document.getElementById("bpmNumber").value = bpm;
         document.getElementById("bpmSlider").value = bpm;
         updateState();
+      }
+
+      function applyPreset(bpm) {
+        if (bpm) {
+          syncBpmInput(bpm);
+        }
       }
 
       function updateState() {
